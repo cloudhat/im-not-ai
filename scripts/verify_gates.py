@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tier 1 구조 게이트 — 4축 통합 결정적 사후 검증 (LLM 콜 0).
+"""Tier 1 구조 게이트 — 5축 통합 결정적 사후 검증 (LLM 콜 0).
 
 `verify_change_rate.py`(문자율 단축 게이트)의 확장판. 문자 diff는 구조
 편집에 눈이 없다 — 실측에서 change_rate 2.77% 뒤에 문장 터치율 29.7%,
@@ -8,7 +8,7 @@ ending_comma -86%, C-8 대구 -75%가 숨어 있었다. 이 스크립트는 문�
 문자율의 사각지대를 보완한다. 기존 verify_change_rate.py는 그대로 두고
 (하위 호환), 신규 게이트는 이 파일이 담당한다.
 
-4축 + 리포트:
+5축 + 리포트:
     P0 문자율   — change_rate() vs WARN 30% / ABORT 50% (기존과 동일 판정)
     P1 목표달성 — before z > +2.0인 어휘 S1 지표가 after에서 z <= +1.0으로
                   내려왔는가. 미달(> +2.0)·과교정(< -1.5)은 WARN.
@@ -17,10 +17,14 @@ ending_comma -86%, C-8 대구 -75%가 숨어 있었다. 이 스크립트는 문�
     P4 터치율  — 원문 문장 중 after에 그대로 없는 비율 + 수치 소실 관찰.
                  게이트 아님, 보고만 (수치 소실은 문장 병합·표기 통합의
                  정상 부산물일 수 있어 exit code에 기여하지 않는다).
+    P5 서법    — 당위("~해야 한다")·추측("~할 수 있다") 표지 총수가 줄면 WARN.
+                 줄었다 = 필자가 요구·유보한 것을 단정으로 바꿨을 가능성.
+                 I-4 처방은 '이동'만 허용하므로 총수가 보존돼야 정상이다.
+                 늘어나는 것은 대상 아님(당위 주입은 P3 golden 소관).
 
 Exit code (verify_change_rate.py와 의미 동일):
     0 — 수렴 (전 축 통과)
-    1 — 경고 (문자율 30~50% / 목표 미달·과교정 / 전멸 / golden FAIL)
+    1 — 경고 (문자율 30~50% / 목표 미달·과교정 / 전멸 / golden FAIL / 서법 감소)
     2 — 중단 (문자율 >= 50%). 윤문본 채택 금지 — 최우선.
     3 — 실행 오류 (입력 파일 없음 등). 게이트 판정 불가.
 
@@ -174,7 +178,7 @@ def judge_s1_targets(
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Tier 1 구조 게이트 (4축 통합)")
+    p = argparse.ArgumentParser(description="Tier 1 구조 게이트 (5축 통합)")
     p.add_argument("--before", required=True, help="원문 경로 (01_input.txt)")
     p.add_argument("--after", required=True, help="윤문본 경로 (final.md)")
     p.add_argument("--genre", default="essay", help="essay/column/report/blog/abstract")
