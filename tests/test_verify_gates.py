@@ -221,5 +221,87 @@ class MainExitCodeTests(unittest.TestCase):
         self.assertIn("numbers_dropped", report)
 
 
+
+# ===========================================================================
+# P5 서법 보존 — 당위·추측 표지 총수 (v2.4)
+# ===========================================================================
+
+
+class ModalityGateTests(unittest.TestCase):
+    """실행자 자기 점검이 놓친 서법 변경을 결정적으로 잡는가.
+
+    A/B 실측에서 실행자가 "게이트 롤백 0건"이라 보고했으나 의무 표지가
+    실제로는 줄어든 사례가 2건 있었다(6→5, 9→8). 자기 점검을 신뢰하지
+    않고 코드로 세는 것이 이 축의 존재 이유다.
+    """
+
+    def test_counts_deontic_and_hedge(self) -> None:
+        deo, hed = verify_gates.count_modality(
+            "정부는 규제를 정비해야 한다. 효과는 시간이 걸릴 수 있다."
+        )
+        self.assertEqual(deo, 1)
+        self.assertEqual(hed, 1)
+
+    def test_move_preserves_markers(self) -> None:
+        """I-4가 허용하는 '이동'은 표지 총수를 바꾸지 않는다."""
+        before = "예산을 늘려야 한다. 효과는 크다."
+        after = "효과는 크다. 예산을 늘려야 한다."
+        self.assertEqual(
+            verify_gates.count_modality(before)[0],
+            verify_gates.count_modality(after)[0],
+        )
+
+    def test_merge_drops_marker(self) -> None:
+        """금지된 '병합'은 의무 2건을 표지 1개로 줄인다 — 게이트가 잡아야 할 형태."""
+        before = "예산을 늘려야 한다. 인력을 확충해야 한다."
+        after = "예산을 늘리고 인력을 확충해야 한다."
+        self.assertGreater(
+            verify_gates.count_modality(before)[0],
+            verify_gates.count_modality(after)[0],
+        )
+
+    def test_deontic_to_assertion_drops_marker(self) -> None:
+        """당위 → 단정 전환(구 I-4 처방 (a)(b))도 표지 감소로 잡힌다."""
+        before = "정부는 지원을 확대해야 한다."
+        after = "정부는 지원을 확대한다."
+        self.assertEqual(verify_gates.count_modality(before)[0], 1)
+        self.assertEqual(verify_gates.count_modality(after)[0], 0)
+
+    def test_hedge_to_assertion_drops_marker(self) -> None:
+        before = "성장률이 반등할 수 있다."
+        after = "성장률이 반등한다."
+        self.assertEqual(verify_gates.count_modality(before)[1], 1)
+        self.assertEqual(verify_gates.count_modality(after)[1], 0)
+
+    def test_gate_warns_on_modality_loss(self) -> None:
+        """main() 통합 판정에서 서법 감소가 exit code에 반영되는가."""
+        with tempfile.TemporaryDirectory() as d:
+            b = _write(d, "b.md", "정부는 예산을 늘려야 한다. 인력도 확충해야 한다.")
+            a = _write(d, "a.md", "정부는 예산을 늘리고 인력도 확충한다.")
+            code = verify_gates.main(["--before", b, "--after", a])
+        self.assertGreaterEqual(code, 1)
+
+    def test_gate_ok_when_modality_kept(self) -> None:
+        """이동만 한 경우 P5는 통과한다.
+
+        짧은 텍스트에서 문장 순서만 바꿔도 P0 문자율이 튀므로, 여기서는
+        통합 exit code가 아니라 P5 축의 판정만 본다(축 간 독립성).
+        """
+        before = (
+            "재정 여력은 한정돼 있다. 그래서 우선순위를 세워야 한다. "
+            "지역 격차도 함께 봐야 한다. 통계는 매년 개선되고 있다."
+        )
+        after = (
+            "재정 여력은 한정돼 있다. 그래서 우선순위를 세워야 한다. "
+            "통계는 매년 개선되고 있다. 지역 격차도 함께 봐야 한다."
+        )
+        deo_b, hed_b = verify_gates.count_modality(before)
+        deo_a, hed_a = verify_gates.count_modality(after)
+        self.assertEqual(deo_b, deo_a)
+        self.assertEqual(hed_b, hed_a)
+        self.assertLessEqual(
+            deo_b - deo_a, verify_gates.MODALITY_TOLERANCE
+        )
+
 if __name__ == "__main__":
     unittest.main()
