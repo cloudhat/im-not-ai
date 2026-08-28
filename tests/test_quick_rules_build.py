@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -48,6 +49,24 @@ class QuickRulesBuildTests(unittest.TestCase):
             "quick-rules.md 가 taxonomy와 어긋난다. "
             "`python3 scripts/build_quick_rules.py` 로 재생성하라.",
         )
+
+    def test_s3_rules_is_up_to_date(self) -> None:
+        """s3-rules.md 가 taxonomy의 S3 블록과 그대로 일치해야 한다."""
+        with open(self.builder._TAXONOMY, encoding="utf-8") as f:
+            taxonomy = f.read()
+        rendered = self.builder.render_s3_rules(taxonomy)
+        with open(self.builder._S3_OUT, encoding="utf-8") as f:
+            existing = f.read()
+        self.assertEqual(
+            existing.rstrip(),
+            rendered.rstrip(),
+            "s3-rules.md 가 taxonomy와 어긋난다. "
+            "`python3 scripts/build_quick_rules.py` 로 재생성하라.",
+        )
+        patterns = self.builder.parse_taxonomy(taxonomy)
+        expected_ids = [p["id"] for p in patterns if p["severity"].startswith("S3")]
+        rendered_ids = re.findall(r"^### ([A-J]-\d+)\.", rendered, re.MULTILINE)
+        self.assertEqual(rendered_ids, expected_ids)
 
     def test_generated_ids_are_subset_of_taxonomy(self) -> None:
         """생성물의 모든 ID가 taxonomy에 실재해야 한다(1:1 매칭)."""

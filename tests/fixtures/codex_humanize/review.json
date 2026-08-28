@@ -1,0 +1,8 @@
+{
+  "self_check": {"1": true, "3": true, "4": true, "6": true},
+  "highlights": [
+    {"id": "A-1", "before": "자료에 대해 검토한다.", "after": "자료를 검토한다."},
+    {"id": "A-7", "before": "가능성을 가지고 있다.", "after": "삭제"},
+    {"id": "C-5", "before": "✅", "after": "삭제"}
+  ]
+}
