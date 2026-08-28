@@ -44,6 +44,10 @@ fail-fast 상태 전이로 충분한지 확인한다. 실제 파일을 만들거
 경로나 도구 오류는 후속 단계를 중단한다. 일부 집계, 모델이 대신 센 수치,
 대체 경로 결과는 만들지 않는다.
 
+50% 초과 정책은 Codex 전용 override가 아니다. 생성 원본인
+`references/quick-rules.header.md`를 수정하고 `build_quick_rules.py`로 공유
+`quick-rules.md`를 재생성해 `humanize-monolith`에도 같은 정책을 적용한다.
+
 ## 상태 전이 확인
 
 실행:
