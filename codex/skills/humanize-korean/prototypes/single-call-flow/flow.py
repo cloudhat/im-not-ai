@@ -8,10 +8,10 @@ STAGES = (
     ("요청 검증", "Codex", ()),
     ("run 준비", "결정적 도구", ("01_input.md",)),
     ("규칙 로드", "Codex", ()),
-    ("윤문 초안", "Codex", (".draft.md",)),
-    ("탐지 건수 집계", "결정적 도구", ("counts.json",)),
-    ("변경률 gate", "결정적 도구", ()),
-    ("final.md 확정·명시 시 원본 반영", "결정적 도구", ("final.md",)),
+    ("윤문 초안·검토 JSON", "Codex", (".draft.md", "review.json")),
+    ("탐지 건수 집계", "최종화 도구", ()),
+    ("변경률 gate", "최종화 도구", ()),
+    ("final.md 확정·명시 시 원본 반영", "최종화 도구", ("final.md",)),
     ("사용자 응답", "Codex", ()),
 )
 
@@ -48,6 +48,12 @@ def advance(state: State, outcome: str) -> State:
 
     history = state.history + (f"통과: {name} ({owner})",)
     artifacts = state.artifacts + new_artifacts
+    if name.startswith("final.md 확정"):
+        artifacts = tuple(
+            artifact
+            for artifact in artifacts
+            if artifact not in {".draft.md", "review.json"}
+        )
     if state.stage == len(STAGES) - 1:
         return replace(
             state,
