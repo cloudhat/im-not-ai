@@ -11,7 +11,7 @@ STAGES = (
     ("윤문 초안", "Codex", (".draft.md",)),
     ("탐지 건수 집계", "결정적 도구", ("counts.json",)),
     ("변경률 gate", "결정적 도구", ()),
-    ("최종 산출물 확정", "결정적 도구", ("final.md",)),
+    ("final.md 확정·명시 시 원본 반영", "결정적 도구", ("final.md",)),
     ("사용자 응답", "Codex", ()),
 )
 
@@ -22,15 +22,24 @@ class State:
     status: str = "진행 중"
     artifacts: tuple[str, ...] = ()
     history: tuple[str, ...] = ()
+    grade: str | None = None
 
 
-def advance(state: State, succeeds: bool) -> State:
+def advance(state: State, outcome: str) -> State:
     """Return the next state without performing I/O."""
     if state.status != "진행 중":
         return state
 
     name, owner, new_artifacts = STAGES[state.stage]
-    if not succeeds:
+    if outcome == "over_limit" and name == "변경률 gate":
+        return replace(
+            state,
+            stage=state.stage + 1,
+            grade="D",
+            history=state.history + ("경고: 변경률 50% 초과, 결과 유지",),
+        )
+
+    if outcome == "fail":
         return replace(
             state,
             status=f"중단 — {name} 실패, 후속 단계 실행 안 함",

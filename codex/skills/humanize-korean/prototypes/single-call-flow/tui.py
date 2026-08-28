@@ -17,6 +17,7 @@ def render(state: State) -> None:
         print(f"{BOLD}현재 단계{RESET}: {state.stage + 1}/{len(STAGES)} {name}")
         print(f"{BOLD}책임{RESET}: {owner}")
     print(f"{BOLD}산출물{RESET}: {', '.join(state.artifacts) or '(없음)'}")
+    print(f"{BOLD}등급{RESET}: {state.grade or '(아직 없음)'}")
 
     print(f"\n{BOLD}이력{RESET}")
     for item in state.history:
@@ -26,6 +27,7 @@ def render(state: State) -> None:
 
     print(f"\n{BOLD}[n]{RESET} {DIM}통과{RESET}  "
           f"{BOLD}[f]{RESET} {DIM}실패 주입{RESET}  "
+          f"{BOLD}[d]{RESET} {DIM}50% 초과 유지{RESET}  "
           f"{BOLD}[r]{RESET} {DIM}초기화{RESET}  "
           f"{BOLD}[q]{RESET} {DIM}종료{RESET}")
 
@@ -40,9 +42,11 @@ def main() -> None:
         if key == "r":
             state = State()
         elif key == "n":
-            state = advance(state, succeeds=True)
+            state = advance(state, outcome="pass")
         elif key == "f":
-            state = advance(state, succeeds=False)
+            state = advance(state, outcome="fail")
+        elif key == "d":
+            state = advance(state, outcome="over_limit")
 
 
 if __name__ == "__main__":
