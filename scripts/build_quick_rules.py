@@ -12,7 +12,8 @@ ID 드리프트가 3건 생겼다(D-3·G-1/G-2·J-3가 서로 다른 패턴을 �
     quick-rules.footer.md  — 뒤에 붙는 고정 템플릿(자체검증·등급)
 
 출력:
-    quick-rules.md         — 생성물. 직접 편집 금지.
+    quick-rules.md         — quick: true 생성물. 직접 편집 금지.
+    s3-rules.md            — S3 패턴 전체 블록 생성물. 직접 편집 금지.
 
 메타 형식(taxonomy 패턴 항목 말미, 이탤릭 한 줄):
     - _quick: true · quick_pattern: <표층 신호> · quick_fix: <한 줄 처방>_
@@ -38,6 +39,7 @@ _TAXONOMY = os.path.join(_REFS, "ai-tell-taxonomy.md")
 _HEADER = os.path.join(_REFS, "quick-rules.header.md")
 _FOOTER = os.path.join(_REFS, "quick-rules.footer.md")
 _OUT = os.path.join(_REFS, "quick-rules.md")
+_S3_OUT = os.path.join(_REFS, "s3-rules.md")
 
 # ## A. 번역투 (Translation-ese) — S1~S2
 _CATEGORY_RE = re.compile(r"^## ([A-J])\.\s+(.+?)\s*$")
@@ -138,6 +140,29 @@ def render(patterns: list[dict], header: str, footer: str) -> str:
     return "\n".join(out)
 
 
+def render_s3_rules(taxonomy: str) -> str:
+    """Return every explicitly S3 pattern block without rewriting the block."""
+    lines = taxonomy.splitlines(keepends=True)
+    blocks: list[str] = []
+    for index, line in enumerate(lines):
+        if not line.startswith("### ") or "[S3" not in line:
+            continue
+        end = index + 1
+        while end < len(lines) and not (
+            lines[end].startswith("### ") or lines[end].startswith("## ")
+        ):
+            end += 1
+        blocks.append("".join(lines[index:end]).rstrip())
+    if not blocks:
+        raise ParseError("S3 패턴 블록이 없다")
+    header = (
+        "# S3 Rules — Codex 추가 규칙\n\n"
+        "<!-- ai-tell-taxonomy.md의 S3 패턴 전체 블록에서 자동 생성한다. "
+        "직접 고치지 말 것. -->\n\n"
+    )
+    return header + "\n\n".join(blocks) + "\n"
+
+
 def build() -> tuple[str, list[dict]]:
     with open(_TAXONOMY, encoding="utf-8") as f:
         taxonomy = f.read()
@@ -167,6 +192,8 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         rendered, patterns = build()
+        with open(_TAXONOMY, encoding="utf-8") as f:
+            s3_rendered = render_s3_rules(f.read())
     except ParseError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
@@ -179,21 +206,33 @@ def main(argv: list[str] | None = None) -> int:
         if os.path.exists(_OUT):
             with open(_OUT, encoding="utf-8") as f:
                 existing = f.read()
-        if existing.rstrip() != rendered.rstrip():
+        s3_existing = ""
+        if os.path.exists(_S3_OUT):
+            with open(_S3_OUT, encoding="utf-8") as f:
+                s3_existing = f.read()
+        if (
+            existing.rstrip() != rendered.rstrip()
+            or s3_existing.rstrip() != s3_rendered.rstrip()
+        ):
             print(
-                "error: quick-rules.md 가 taxonomy와 어긋난다. "
+                "error: quick-rules.md 또는 s3-rules.md가 taxonomy와 어긋난다. "
                 "`python3 scripts/build_quick_rules.py` 로 재생성하라.",
                 file=sys.stderr,
             )
             return 1
-        print(f"quick-rules.md 최신 (quick: true {n_true} / false {n_false})")
+        print(
+            "quick-rules.md·s3-rules.md 최신 "
+            f"(quick: true {n_true} / false {n_false})"
+        )
         return 0
 
     with open(_OUT, "w", encoding="utf-8") as f:
         f.write(rendered)
+    with open(_S3_OUT, "w", encoding="utf-8") as f:
+        f.write(s3_rendered)
     lines = rendered.count("\n") + 1
     print(
-        f"quick-rules.md 생성 — {lines}줄 / {len(rendered)}자 "
+        f"quick-rules.md·s3-rules.md 생성 — {lines}줄 / {len(rendered)}자 "
         f"(quick: true {n_true} / false {n_false} / 전체 {len(patterns)})"
     )
     return 0

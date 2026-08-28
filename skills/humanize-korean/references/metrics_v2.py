@@ -640,7 +640,7 @@ def antithesis_count(text: str) -> int:
 
 # 철칙 #4 게이트 임계값. change_rate() 반환값과 직접 비교한다.
 CHANGE_RATE_WARN = 0.30   # 30% 초과 — 경고, 과윤문 점검
-CHANGE_RATE_ABORT = 0.50  # 50% 초과 — 강제 중단
+CHANGE_RATE_ABORT = 0.50  # 50% 초과 — 등급 D 경계
 
 # 마크업 전용 줄: 코드 펜스·수평선·표 구분선 등 — ignore_markup 모드에서 제거.
 _MARKUP_ONLY_LINE_RE = re.compile(
@@ -666,7 +666,7 @@ def change_rate(before: str, after: str, ignore_markup: bool = False) -> float:
 
     이 함수의 반환값이 변경률의 단일 진실 원천(SSOT)이며, 에이전트의
     재량(눈대중) 자가 산출을 대체한다. 게이트 판정은 반드시 이 값과
-    ``CHANGE_RATE_WARN``(0.30 경고) / ``CHANGE_RATE_ABORT``(0.50 강제 중단)
+    ``CHANGE_RATE_WARN``(0.30 경고) / ``CHANGE_RATE_ABORT``(0.50 등급 D 경계)
     상수를 비교해 내린다.
 
     계산: ``difflib.SequenceMatcher`` 문자 단위 유사도의 보수

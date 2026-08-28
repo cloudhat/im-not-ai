@@ -4,7 +4,7 @@
 윤문 전후 변경률을 `metrics_v2.change_rate()`로 계산해 exit code로 게이트한다.
 오케스트레이터가 monolith 호출 *후* Bash 1회로 실행한다.
 
-왜 필요한가: 변경률은 철칙 #4(30% 경고 / 50% 강제 중단)의 게이트 수치인데,
+왜 필요한가: 변경률은 30% 초과 경고와 50% 초과 등급 D의 gate 수치인데,
 지금까지 통제 대상인 에이전트가 스스로 계산해 자가 보고했다. LLM 산수는
 부정확하므로 과윤문 가드 자체가 무른 상태였다. 이 스크립트가 SSOT다.
 
@@ -12,9 +12,9 @@ final.md 본문 끝의 `<!-- HUMANIZE-SUMMARY -->` 주석 블록은 윤문 산�
 메타데이터이므로 비교 전에 제거한다. 제거하지 않으면 변경률이 부풀려진다.
 
 Exit code:
-    0 — 수렴 (변경률 < 30%)
-    1 — 경고 (30% <= 변경률 < 50%). 오케스트레이터가 사용자에게 고지.
-    2 — 중단 (변경률 >= 50%). 윤문본 채택 금지, 롤백 또는 사람 검토.
+    0 — 수렴 (변경률 <= 30%)
+    1 — 경고 (30% < 변경률 <= 50%). 오케스트레이터가 사용자에게 고지.
+    2 — 등급 D 신호 (변경률 > 50%). 호출자가 결과와 경고를 남긴다.
     3 — 실행 오류 (입력 파일 없음 등). 게이트 판정 불가.
 
 CLI:
@@ -58,6 +58,25 @@ def _read(path: str) -> str:
         return f.read()
 
 
+def evaluate_change_rate(
+    before: str,
+    after: str,
+    *,
+    ignore_markup: bool = False,
+) -> tuple[float, str, int]:
+    """Return ``(rate, verdict, exit_code)`` using the shared thresholds."""
+    rate = _m.change_rate(
+        strip_summary_block(before),
+        strip_summary_block(after),
+        ignore_markup=ignore_markup,
+    )
+    if rate > _m.CHANGE_RATE_ABORT:
+        return rate, "GRADE D — 변경률 50% 초과. 경고 필요", 2
+    if rate > _m.CHANGE_RATE_WARN:
+        return rate, "WARN — 과윤문 경고. 사용자 고지 필요", 1
+    return rate, "OK — 수렴", 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="철칙 #4 변경률 게이트")
     p.add_argument("--before", required=True, help="원문 경로 (01_input.txt)")
@@ -75,24 +94,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: 파일 없음: {path}", file=sys.stderr)
             return 3
 
-    before = strip_summary_block(_read(args.before))
-    after = strip_summary_block(_read(args.after))
-
-    rate = _m.change_rate(before, after, ignore_markup=args.ignore_markup)
+    rate, verdict, code = evaluate_change_rate(
+        _read(args.before),
+        _read(args.after),
+        ignore_markup=args.ignore_markup,
+    )
     pct = rate * 100
-
-    if rate >= _m.CHANGE_RATE_ABORT:
-        verdict, code = "ABORT — 강제 중단. 윤문본 채택 금지", 2
-    elif rate >= _m.CHANGE_RATE_WARN:
-        verdict, code = "WARN — 과윤문 경고. 사용자 고지 필요", 1
-    else:
-        verdict, code = "OK — 수렴", 0
 
     scope = "본문만 (마크업 제외)" if args.ignore_markup else "전문"
     print(f"change_rate: {pct:.1f}%  [{scope}]")
     print(
         f"gate: {verdict}  "
-        f"(경고 {_m.CHANGE_RATE_WARN * 100:.0f}% / 중단 {_m.CHANGE_RATE_ABORT * 100:.0f}%)"
+        f"(경고 >{_m.CHANGE_RATE_WARN * 100:.0f}% / D >{_m.CHANGE_RATE_ABORT * 100:.0f}%)"
     )
     return code
 
